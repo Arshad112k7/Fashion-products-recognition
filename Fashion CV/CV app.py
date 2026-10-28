@@ -324,14 +324,37 @@ def extract_palette(pil_img, k=4):
         palette.append((hex_code, pct))
     return palette
 
-# --- LOAD LOCAL ASSETS ---
+# --- LOAD LOCAL ASSETS (STREAMLIT CLOUD COMPATIBLE) ---
 @st.cache_resource
 def load_fashion_system():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    base_dir = Path(__file__).parent if "__file__" in locals() else Path.cwd()
-    json_path = base_dir / "label_mappings.json"
-    model_path = base_dir / "best_fashion_model.pth"
     
+    # Check parent directory, current working directory, and the nested 'Fashion CV' folder
+    possible_roots = [
+        Path(__file__).resolve().parent,
+        Path.cwd(),
+        Path.cwd() / "Fashion CV",
+        Path("/mount/src/fashion-products-recognition/Fashion CV"),
+        Path("/mount/src/fashion-products-recognition")
+    ]
+    
+    json_path = None
+    model_path = None
+    
+    for r in possible_roots:
+        cand_json = r / "label_mappings.json"
+        cand_model = r / "best_fashion_model.pth"
+        
+        if cand_json.exists() and json_path is None:
+            json_path = cand_json
+        if cand_model.exists() and model_path is None:
+            model_path = cand_model
+
+    if json_path is None or not json_path.exists():
+        raise FileNotFoundError(f"Missing 'label_mappings.json'. Checked directories: {[str(p) for p in possible_roots]}")
+    if model_path is None or not model_path.exists():
+        raise FileNotFoundError(f"Missing 'best_fashion_model.pth'. Checked directories: {[str(p) for p in possible_roots]}")
+
     with open(json_path, "r") as f:
         mappings = json.load(f)
         
